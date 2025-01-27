@@ -1,0 +1,1 @@
+export type settings = 'crop' | 'filter' | 'erasing'

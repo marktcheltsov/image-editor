@@ -1,0 +1,332 @@
+import React, { useRef, useState, useEffect } from "react";
+import ImageProcessor from "./lib/ImageEditer";
+import FileUploader from "./components/ui/file-uploader";
+import SliderControl from "./components/ui/slider-controll";
+import SettingsContainer from "./components/settings-container";
+import { settings } from "./types/types";
+import InputNumber from "./components/ui/input-number";
+
+const ImageEditor: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [isErasing, setIsErasing] = useState(false);
+  const [isCroping, setIsCroping] = useState(false)
+  const [eraseRadius, setEraseRadius] = useState(10);
+  const [blurRadius, setBlurRadius] = useState(0); // Степень размытия
+  const [sharpnessAmount, setSharpnessAmount] = useState(0); // Степень четкости
+  const [settingsType, setSettingsType] = useState<settings | null>(null);
+
+  const [square, setSquare] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
+
+  const [exposure, setExposure] = useState(0);
+  const [contrast, setContrast] = useState(0);
+  const [saturation, setSaturation] = useState(0);
+  const [temperature, setTemperature] = useState(0);
+  const [tint, setTint] = useState(0);
+  const [highlights, setHighlights] = useState(0);
+  const [shadows, setShadows] = useState(0);
+
+  const handleResize = (e: React.MouseEvent, corner: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const canvas = canvasRef.current!;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startSquare = { ...square };
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!isCroping) return null
+      let dx = moveEvent.clientX - startX;
+      let dy = moveEvent.clientY - startY;
+
+      const newSquare = { ...startSquare };
+
+      if (corner.includes("right")) {
+        newSquare.width = Math.min(canvas.width, Math.max(0, startSquare.width + dx));
+      }
+      if (corner.includes("bottom")) {
+        newSquare.height = Math.min(canvas.height, Math.max(0, startSquare.height + dy));
+      }
+      if (corner.includes("left")) {
+        dx = Math.min(dx, startSquare.x);
+        newSquare.width = Math.min(canvas.width, Math.max(0, startSquare.width - dx));
+        newSquare.x = startSquare.x + dx;
+      }
+      if (corner.includes("top")) {
+        dy = Math.min(dy, startSquare.y);
+        newSquare.height = Math.min(canvas.height, Math.max(0, startSquare.height - dy));
+        newSquare.y = startSquare.y + dy;
+      }
+
+      setSquare(newSquare);
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+
+  const applyFilters = () => {
+    if (imageProcessor.current) {
+      imageProcessor.current.applyFilters({
+        exposure,
+        contrast,
+        saturation,
+        temperature,
+        tint,
+        highlights,
+        shadows,
+      });
+    }
+  };
+
+  const resetFilters = () => {
+    if (imageProcessor.current) {
+      imageProcessor.current.resetFilters();
+      setExposure(0);
+      setContrast(0);
+      setSaturation(0);
+      setTemperature(0);
+      setTint(0);
+      setHighlights(0);
+      setShadows(0);
+    }
+  };
+
+  const imageProcessor = useRef<ImageProcessor | null>(null);
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      const canvas = canvasRef.current;
+      imageProcessor.current = new ImageProcessor(canvas);
+    }
+  }, []);
+
+  const handleTypeChange = (type: settings) => {
+    if (isErasing) {
+      setIsErasing(false)
+    }
+    if (isCroping) {
+      setIsCroping(false)
+    }
+    if (type === settingsType) {
+      setSettingsType(null)
+      return
+    }
+
+    if (type === 'crop') {
+      setIsCroping(true)
+    }
+    setSettingsType(type)
+  }
+
+  const handleFileChange = (file: File) => {
+    if (file) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        setImageLoaded(true);
+        imageProcessor.current = new ImageProcessor(canvas);
+        imageProcessor.current.loadImageFromFile(file);
+      }
+    }
+  };
+
+  // Erasing handlers
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!imageLoaded) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const x = e.clientX - rect!.left;
+    const y = e.clientY - rect!.top;
+
+    if (isErasing && imageProcessor.current) {
+      imageProcessor.current.startErasing();
+      imageProcessor.current.erasing(x, y);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isErasing || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (isErasing && imageProcessor.current) {
+      imageProcessor.current.erasing(x, y);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (isErasing && imageProcessor.current) {
+      imageProcessor.current.stopErasing();
+    }
+  };
+
+  const toggleErase = () => {
+    setIsErasing(!isErasing);
+    if (!isErasing && imageProcessor.current) {
+      imageProcessor.current.stopErasing();
+    } else if (imageProcessor.current) {
+      imageProcessor.current.startErasing();
+    }
+  };
+
+  const handleEraseRadiusChange = (radius: number) => {
+    setEraseRadius(radius);
+    if (imageProcessor.current) {
+      imageProcessor.current.setEraseRadius(radius);
+    }
+  };
+
+  const handleBlurChange = (radius: number) => {
+    setBlurRadius(radius);
+    if (imageProcessor.current) {
+      imageProcessor.current.applyBlur(radius);
+    }
+  };
+
+  const handleSharpnessChange = (amount: number) => {
+    setSharpnessAmount(amount);
+    if (imageProcessor.current) {
+      imageProcessor.current.applySharpness(amount);
+    }
+  };
+
+  const applyCrop = () => {
+    if (imageProcessor.current) {
+      const { x, y, width, height } = square;
+  
+      // Преобразуем размеры квадрата к целым числам, чтобы избежать проблем с пикселями
+      const cropX = Math.round(x);
+      const cropY = Math.round(y);
+      const cropWidth = Math.round(width);
+      const cropHeight = Math.round(height);
+  
+      // Вызываем метод обрезки
+      imageProcessor.current.applyCrop(cropX, cropY, cropWidth, cropHeight);
+  
+      // Обновляем квадрат для новой области
+      setSquare({
+        x: 0,
+        y: 0,
+        width: cropWidth,
+        height: cropHeight,
+      });
+    }
+  };
+
+  const handleExport = () => imageProcessor.current && imageProcessor.current.exportImage();
+
+  return (
+    <div className="flex gap-2 bg-gray-900 h-screen w-screen text-white">
+      <div className="w-full max-w-[300px]">
+        <SettingsContainer 
+          handleExport={handleExport} 
+          handleTypeChange={handleTypeChange} 
+          type={settingsType} 
+          toggleErase={toggleErase} 
+          imageLoaded={imageLoaded}
+        />
+        {settingsType === 'filter' && (
+          <div>
+            <div className="mt-4 space-y-4">
+            {[{ label: "Exposure", value: exposure, setter: setExposure, min: -100, max: 100 },
+              { label: "Contrast", value: contrast, setter: setContrast, min: -100, max: 100 },
+              { label: "Saturation", value: saturation, setter: setSaturation, min: -100, max: 100 },
+              { label: "Temperature", value: temperature, setter: setTemperature, min: -100, max: 100 },
+              { label: "Tint", value: tint, setter: setTint, min: -100, max: 100 },
+              { label: "Highlights", value: highlights, setter: setHighlights, min: -100, max: 100 },
+              { label: "Shadows", value: shadows, setter: setShadows, min: -100, max: 100 },
+              { label: "Blur", value: blurRadius, setter: handleBlurChange, min: -100, max: 100 },
+              { label: "Sharpness", value: sharpnessAmount, setter: handleSharpnessChange, min: -100, max: 100 },
+            ].map(({ label, value, setter, min, max }) => (
+              <SliderControl key={label} min={min} max={max} onChange={(value: number)=> {
+                setter(value);
+                applyFilters()
+              }} label={label} value={value}/>
+            ))}
+          </div>
+          <button
+            onClick={resetFilters}
+            className="mt-4 p-2 bg-red-500 text-white rounded w-full"
+          >
+            Reset Filters
+          </button>              
+        </div>
+        )}
+        {settingsType === 'crop' && (
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={applyCrop}
+            className="p-2 bg-green-500 text-white rounded"
+            disabled={!imageLoaded}
+          >
+            Apply Crop
+          </button>
+        </div>
+        )}
+        {settingsType === 'erasing' && (
+          <InputNumber max={50} min={5} value={eraseRadius} onChange={handleEraseRadiusChange}/>
+        )}
+      </div>
+      <div className="  ">
+        <FileUploader onFileChange={handleFileChange} />
+        <div className="relative w-full h-full">
+          <canvas
+            ref={canvasRef}
+            className="border border-gray-300"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={() => {
+              if (isErasing && imageProcessor.current) {
+                imageProcessor.current.stopErasing();
+              }
+            }}
+          />
+          {imageLoaded && isCroping && (
+            <div
+              className="absolute border-2 border-red-500"
+              style={{
+                left: square.x,
+                top: square.y,
+                width: square.width,
+                height: square.height,
+              }}
+            >
+              {/* Resize handles */}
+              {["top-left", "top-right", "bottom-left", "bottom-right"].map((corner) => (
+                <div
+                  key={corner}
+                  onMouseDown={(e) => handleResize(e, corner)}
+                  className="absolute w-4 h-4 bg-blue-500"
+                  style={{
+                    cursor: `${corner.split("-").join("-resize")}`,
+                    ...(corner === "top-left" && { top: -2, left: -2 }),
+                    ...(corner === "top-right" && { top: -2, right: -2 }),
+                    ...(corner === "bottom-left" && { bottom: -2, left: -2 }),
+                    ...(corner === "bottom-right" && { bottom: -2, right: -2 }),
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ImageEditor;
