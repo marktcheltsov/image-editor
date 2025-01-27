@@ -1,4 +1,4 @@
-import BaseImageEditor from "./BaseImageEditer";
+import BaseImageEditor from "./base-image-editer";
 import EraseManager from "./modlules/erase";
 import { filters } from "./types/filters.types";
 
@@ -6,8 +6,8 @@ class ImageEditer extends BaseImageEditor {
     private erase: EraseManager;
 
     constructor(canvas: HTMLCanvasElement) {
-        super(canvas); 
-        this.erase = new EraseManager(this.ctx);
+      super(canvas); 
+      this.erase = new EraseManager(this.ctx);
     }
   
     public applyFilters({
@@ -82,11 +82,11 @@ class ImageEditer extends BaseImageEditor {
     }
 
     private clamp(value: number): number {
-        return Math.max(0, Math.min(255, value));
+      return Math.max(0, Math.min(255, value));
     }
   
     public resetFilters() {
-        this.reset()
+      this.reset()
     }
   
   
@@ -102,37 +102,37 @@ class ImageEditer extends BaseImageEditor {
     }
 
     public applyBlur(radius: number) {
-        if (!this.image) return;
+      if (!this.image) return;
 
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.filter = `blur(${radius}px)`;
-        this.ctx.drawImage(this.image, 0, 0);
-        this.ctx.filter = "none";
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.filter = `blur(${radius}px)`;
+      this.ctx.drawImage(this.image, 0, 0);
+      this.ctx.filter = "none";
     }
 
     public applySharpness(amount: number) {
-        if (!this.image) return;
+      if (!this.image) return;
 
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.filter = `contrast(${100 + amount}%)`;
-        this.ctx.drawImage(this.image, 0, 0);
-        this.ctx.filter = "none";
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.filter = `contrast(${100 + amount}%)`;
+      this.ctx.drawImage(this.image, 0, 0);
+      this.ctx.filter = "none";
     }
 
     public startErasing() {
-        this.erase.start();
+      this.erase.start();
     }
 
     public stopErasing() {
-        this.erase.stop();
+      this.erase.stop();
     }
 
     public setEraseRadius(radius: number) {
-        this.erase.setRadius(radius);
+      this.erase.setRadius(radius);
     }
 
     public erasing(x: number, y: number) {
-        this.erase.erase(x, y);
+      this.erase.erase(x, y);
     }
   }
   

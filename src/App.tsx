@@ -1,10 +1,11 @@
 import React, { useRef, useState, useEffect } from "react";
-import ImageProcessor from "./lib/ImageEditer";
+import ImageProcessor from "./lib/image-editer";
 import FileUploader from "./components/ui/file-uploader";
 import SliderControl from "./components/ui/slider-controll";
 import SettingsContainer from "./components/settings-container";
 import { settings } from "./types/types";
 import InputNumber from "./components/ui/input-number";
+import CanvasEditor from "./components/canvas-editor";
 
 const ImageEditor: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -12,8 +13,8 @@ const ImageEditor: React.FC = () => {
   const [isErasing, setIsErasing] = useState(false);
   const [isCroping, setIsCroping] = useState(false)
   const [eraseRadius, setEraseRadius] = useState(10);
-  const [blurRadius, setBlurRadius] = useState(0); // Степень размытия
-  const [sharpnessAmount, setSharpnessAmount] = useState(0); // Степень четкости
+  const [blurRadius, setBlurRadius] = useState(0);
+  const [sharpnessAmount, setSharpnessAmount] = useState(0);
   const [settingsType, setSettingsType] = useState<settings | null>(null);
 
   const [square, setSquare] = useState({
@@ -31,6 +32,8 @@ const ImageEditor: React.FC = () => {
   const [highlights, setHighlights] = useState(0);
   const [shadows, setShadows] = useState(0);
 
+  const imageProcessor = useRef<ImageProcessor | null>(null);
+
   const handleResize = (e: React.MouseEvent, corner: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -47,12 +50,8 @@ const ImageEditor: React.FC = () => {
 
       const newSquare = { ...startSquare };
 
-      if (corner.includes("right")) {
-        newSquare.width = Math.min(canvas.width, Math.max(0, startSquare.width + dx));
-      }
-      if (corner.includes("bottom")) {
-        newSquare.height = Math.min(canvas.height, Math.max(0, startSquare.height + dy));
-      }
+      if (corner.includes("right")) newSquare.width = Math.min(canvas.width, Math.max(0, startSquare.width + dx));
+      if (corner.includes("bottom")) newSquare.height = Math.min(canvas.height, Math.max(0, startSquare.height + dy));
       if (corner.includes("left")) {
         dx = Math.min(dx, startSquare.x);
         newSquare.width = Math.min(canvas.width, Math.max(0, startSquare.width - dx));
@@ -104,30 +103,14 @@ const ImageEditor: React.FC = () => {
     }
   };
 
-  const imageProcessor = useRef<ImageProcessor | null>(null);
-
-  useEffect(() => {
-    if (canvasRef.current) {
-      const canvas = canvasRef.current;
-      imageProcessor.current = new ImageProcessor(canvas);
-    }
-  }, []);
-
   const handleTypeChange = (type: settings) => {
-    if (isErasing) {
-      setIsErasing(false)
-    }
-    if (isCroping) {
-      setIsCroping(false)
-    }
+    if (isErasing) setIsErasing(false)
+    if (isCroping) setIsCroping(false)
     if (type === settingsType) {
       setSettingsType(null)
       return
     }
-
-    if (type === 'crop') {
-      setIsCroping(true)
-    }
+    if (type === 'crop') setIsCroping(true)
     setSettingsType(type)
   }
 
@@ -142,7 +125,6 @@ const ImageEditor: React.FC = () => {
     }
   };
 
-  // Erasing handlers
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!imageLoaded) return;
 
@@ -208,16 +190,13 @@ const ImageEditor: React.FC = () => {
     if (imageProcessor.current) {
       const { x, y, width, height } = square;
   
-      // Преобразуем размеры квадрата к целым числам, чтобы избежать проблем с пикселями
       const cropX = Math.round(x);
       const cropY = Math.round(y);
       const cropWidth = Math.round(width);
       const cropHeight = Math.round(height);
   
-      // Вызываем метод обрезки
       imageProcessor.current.applyCrop(cropX, cropY, cropWidth, cropHeight);
   
-      // Обновляем квадрат для новой области
       setSquare({
         x: 0,
         y: 0,
@@ -228,6 +207,14 @@ const ImageEditor: React.FC = () => {
   };
 
   const handleExport = () => imageProcessor.current && imageProcessor.current.exportImage();
+
+  
+  useEffect(() => {
+    if (canvasRef.current) {
+      const canvas = canvasRef.current;
+      imageProcessor.current = new ImageProcessor(canvas);
+    }
+  }, []);
 
   return (
     <div className="flex gap-2 bg-gray-900 h-screen w-screen text-white">
@@ -252,10 +239,17 @@ const ImageEditor: React.FC = () => {
               { label: "Blur", value: blurRadius, setter: handleBlurChange, min: -100, max: 100 },
               { label: "Sharpness", value: sharpnessAmount, setter: handleSharpnessChange, min: -100, max: 100 },
             ].map(({ label, value, setter, min, max }) => (
-              <SliderControl key={label} min={min} max={max} onChange={(value: number)=> {
-                setter(value);
-                applyFilters()
-              }} label={label} value={value}/>
+              <SliderControl 
+                key={label} 
+                min={min} 
+                max={max} 
+                onChange={(value: number)=> {
+                  setter(value);
+                  applyFilters()
+                }} 
+                label={label} 
+                value={value}
+              />
             ))}
           </div>
           <button
@@ -277,53 +271,22 @@ const ImageEditor: React.FC = () => {
           </button>
         </div>
         )}
-        {settingsType === 'erasing' && (
-          <InputNumber max={50} min={5} value={eraseRadius} onChange={handleEraseRadiusChange}/>
-        )}
+        {settingsType === 'erasing' && <InputNumber max={50} min={5} value={eraseRadius} onChange={handleEraseRadiusChange}/>}
       </div>
       <div className="  ">
         <FileUploader onFileChange={handleFileChange} />
-        <div className="relative w-full h-full">
-          <canvas
-            ref={canvasRef}
-            className="border border-gray-300"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={() => {
-              if (isErasing && imageProcessor.current) {
-                imageProcessor.current.stopErasing();
-              }
-            }}
-          />
-          {imageLoaded && isCroping && (
-            <div
-              className="absolute border-2 border-red-500"
-              style={{
-                left: square.x,
-                top: square.y,
-                width: square.width,
-                height: square.height,
-              }}
-            >
-              {/* Resize handles */}
-              {["top-left", "top-right", "bottom-left", "bottom-right"].map((corner) => (
-                <div
-                  key={corner}
-                  onMouseDown={(e) => handleResize(e, corner)}
-                  className="absolute w-4 h-4 bg-blue-500"
-                  style={{
-                    cursor: `${corner.split("-").join("-resize")}`,
-                    ...(corner === "top-left" && { top: -2, left: -2 }),
-                    ...(corner === "top-right" && { top: -2, right: -2 }),
-                    ...(corner === "bottom-left" && { bottom: -2, left: -2 }),
-                    ...(corner === "bottom-right" && { bottom: -2, right: -2 }),
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <CanvasEditor
+         canvasRef={canvasRef} 
+         isCroping={isCroping} 
+         isErasing={isErasing} 
+         imageLoaded={imageLoaded} 
+         square={square} 
+         handleMouseDown={handleMouseDown} 
+         handleMouseMove={handleMouseMove} 
+         handleMouseUp={handleMouseUp} 
+         handleResize={handleResize}
+         stopErasing={toggleErase}
+        />
       </div>
     </div>
   );
