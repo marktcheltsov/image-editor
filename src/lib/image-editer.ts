@@ -1,17 +1,20 @@
 import BaseImageEditor from "./base-image-editer";
+import CropManager from "./modlules/crop";
 import EffectsManager from "./modlules/effects";
 import EraseManager from "./modlules/erase";
 import { filters } from "./types/filters.types";
 
 class ImageEditer extends BaseImageEditor {
-  private erase: EraseManager;
-  private effects: EffectsManager;
+    private erase: EraseManager;
+    private effects: EffectsManager;
+    private crop: CropManager;  // Declare an instance of CropManager
 
-  constructor(canvas: HTMLCanvasElement) {
-    super(canvas);
-    this.erase = new EraseManager(this.ctx);
-    this.effects = new EffectsManager(this.ctx, this.canvas);
-  }
+    constructor(canvas: HTMLCanvasElement) {
+      super(canvas);
+      this.erase = new EraseManager(this.ctx);
+      this.effects = new EffectsManager(this.ctx, this.canvas);
+      this.crop = new CropManager(this.ctx, this.canvas);  // Initialize the CropManager
+    }
   
     public applyFilters({
       exposure,
@@ -84,15 +87,10 @@ class ImageEditer extends BaseImageEditor {
       this.ctx.putImageData(imageData, 0, 0);
     }
 
+
     public applyCrop(x: number, y: number, width: number, height: number) {
       if (!this.image) return;
-
-  
-      const imageData = this.ctx.getImageData(x, y, width, height);
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.canvas.width = width;
-      this.canvas.height = height;
-      this.ctx.putImageData(imageData, 0, 0);
+      this.crop.applyCrop(x, y, width, height);
     }
 
     public applyBlur(radius: number) {
