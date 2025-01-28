@@ -236,8 +236,6 @@ const ImageEditor: React.FC = () => {
               { label: "Tint", value: tint, setter: setTint, min: -100, max: 100 },
               { label: "Highlights", value: highlights, setter: setHighlights, min: -100, max: 100 },
               { label: "Shadows", value: shadows, setter: setShadows, min: -100, max: 100 },
-              { label: "Blur", value: blurRadius, setter: handleBlurChange, min: -100, max: 100 },
-              { label: "Sharpness", value: sharpnessAmount, setter: handleSharpnessChange, min: -100, max: 100 },
             ].map(({ label, value, setter, min, max }) => (
               <SliderControl 
                 key={label} 
@@ -251,6 +249,20 @@ const ImageEditor: React.FC = () => {
                 value={value}
               />
             ))}
+            <SliderControl  
+              min={0} 
+              max={50} 
+              onChange={handleBlurChange}
+              label={'Blur'} 
+              value={blurRadius}
+            />
+            <SliderControl  
+              min={0} 
+              max={50} 
+              onChange={handleSharpnessChange}
+              label={'Sharpness'} 
+              value={sharpnessAmount}
+            />
           </div>
           <button
             onClick={resetFilters}

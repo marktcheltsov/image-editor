@@ -1,14 +1,17 @@
 import BaseImageEditor from "./base-image-editer";
+import EffectsManager from "./modlules/effects";
 import EraseManager from "./modlules/erase";
 import { filters } from "./types/filters.types";
 
 class ImageEditer extends BaseImageEditor {
-    private erase: EraseManager;
+  private erase: EraseManager;
+  private effects: EffectsManager;
 
-    constructor(canvas: HTMLCanvasElement) {
-      super(canvas); 
-      this.erase = new EraseManager(this.ctx);
-    }
+  constructor(canvas: HTMLCanvasElement) {
+    super(canvas);
+    this.erase = new EraseManager(this.ctx);
+    this.effects = new EffectsManager(this.ctx, this.canvas);
+  }
   
     public applyFilters({
       exposure,
@@ -81,15 +84,6 @@ class ImageEditer extends BaseImageEditor {
       this.ctx.putImageData(imageData, 0, 0);
     }
 
-    private clamp(value: number): number {
-      return Math.max(0, Math.min(255, value));
-    }
-  
-    public resetFilters() {
-      this.reset()
-    }
-  
-  
     public applyCrop(x: number, y: number, width: number, height: number) {
       if (!this.image) return;
 
@@ -103,20 +97,20 @@ class ImageEditer extends BaseImageEditor {
 
     public applyBlur(radius: number) {
       if (!this.image) return;
-
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.ctx.filter = `blur(${radius}px)`;
-      this.ctx.drawImage(this.image, 0, 0);
-      this.ctx.filter = "none";
+      this.effects.applyBlur(this.image, radius);
     }
-
+  
     public applySharpness(amount: number) {
       if (!this.image) return;
+      this.effects.applySharpness(this.image, amount);
+    }
 
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.ctx.filter = `contrast(${100 + amount}%)`;
-      this.ctx.drawImage(this.image, 0, 0);
-      this.ctx.filter = "none";
+    private clamp(value: number): number {
+      return Math.max(0, Math.min(255, value));
+    }
+  
+    public resetFilters() {
+      this.reset()
     }
 
     public startErasing() {
